@@ -728,6 +728,7 @@ dependencies = [
 name = "cli_voter"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "solana-client",
  "solana-program",
  "solana-sdk",
