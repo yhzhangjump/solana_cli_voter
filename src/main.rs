@@ -1,7 +1,6 @@
 use std::{env, fs, str::FromStr};
 use bincode::config::Options;
 use std::collections::VecDeque;
-//use serde::{Serialize, Deserialize};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{hash, instruction::{AccountMeta, Instruction}, signer::{keypair::read_keypair_file, keypair::Keypair, Signer}, transaction, vote::{instruction::VoteInstruction, state::{Lockout, VoteStateUpdate}}};
@@ -19,7 +18,7 @@ fn create_vote_txn(
     /* Initialize fields for a CompactUpdateVoteState instruction */
     let tower_slot_start = 1 as u64;
     let tower_slot_end = 31 as u64;
-    let tower_slot_end_hash = hash::Hash::from_str("E6XNgGGqWBV55JBuvaS2edhtejF6HJU1MmCjH6rHdjF1").unwrap();
+    let tower_slot_end_hash = hash::Hash::from_str("36MPede7y4vfLVuuFaZbeKx52yuiGkpLXUsAjB6edS1h").unwrap();
 
     let mut lockouts : VecDeque<Lockout> = VecDeque::new();
     for i in tower_slot_start..tower_slot_end + 1 {
