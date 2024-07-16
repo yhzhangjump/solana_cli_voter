@@ -18,13 +18,13 @@ fn create_vote_txn(
 ) -> transaction::Transaction {
     /* Initialize fields for a CompactUpdateVoteState instruction */
     let tower_slot_start = 1 as u64;
-    let tower_slot_end = 27 as u64;
-    let tower_slot_end_hash = hash::Hash::from_str("23xGzZsHeDuRshEmX7vjfzAu2ujnhCR2i4kX5T4nEWT6").unwrap();
+    let tower_slot_end = 31 as u64;
+    let tower_slot_end_hash = hash::Hash::from_str("E6XNgGGqWBV55JBuvaS2edhtejF6HJU1MmCjH6rHdjF1").unwrap();
 
     let mut lockouts : VecDeque<Lockout> = VecDeque::new();
     for i in tower_slot_start..tower_slot_end + 1 {
         let slot = i;
-        let confirmation_count = tower_slot_end as u32 - i as u32;
+        let confirmation_count = tower_slot_end as u32 - i as u32 + 1;
         lockouts.push_back( Lockout::new_with_confirmation_count( slot, confirmation_count ) );
     }
     let vote_state_update = VoteStateUpdate {
