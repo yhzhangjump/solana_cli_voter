@@ -1,20 +1,59 @@
-use std::{fs, env};
+use std::{env, fs, str::FromStr};
 use bincode::config::Options;
 use std::collections::VecDeque;
+//use serde::{Serialize, Deserialize};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSendTransactionConfig;
-use solana_sdk::{hash, instruction::{AccountMeta, Instruction}, signer::{keypair::read_keypair_file, Signer}, transaction, vote::{instruction::VoteInstruction, state::{Lockout, VoteStateUpdate}}};
+use solana_sdk::{hash, instruction::{AccountMeta, Instruction}, signer::{keypair::read_keypair_file, keypair::Keypair, Signer}, transaction, vote::{instruction::VoteInstruction, state::{Lockout, VoteStateUpdate}}};
 
 const IDENTITY: &str     = "/home/yunzhang/repos/keypairs/fd-identity-keypair.json";
 const ACCOUNT: &str      = "/home/yunzhang/repos/keypairs/fd-vote-keypair.json";
 const ENTRYPOINT: &str   = "http://localhost:8899";
 //const ENTRYPOINT: &str = "https://api.devnet.solana.com";
 
+fn create_vote_txn(
+    recent_hash: hash::Hash,
+    vote_account: &Keypair,
+    validator_identity: &Keypair,
+) -> transaction::Transaction {
+    /* Initialize fields for a CompactUpdateVoteState instruction */
+    let tower_slot_start = 1 as u64;
+    let tower_slot_end = 27 as u64;
+    let tower_slot_end_hash = hash::Hash::from_str("23xGzZsHeDuRshEmX7vjfzAu2ujnhCR2i4kX5T4nEWT6").unwrap();
+
+    let mut lockouts : VecDeque<Lockout> = VecDeque::new();
+    for i in tower_slot_start..tower_slot_end + 1 {
+        let slot = i;
+        let confirmation_count = tower_slot_end as u32 - i as u32;
+        lockouts.push_back( Lockout::new_with_confirmation_count( slot, confirmation_count ) );
+    }
+    let vote_state_update = VoteStateUpdate {
+        root: Option::Some(0 as u64),
+        hash: tower_slot_end_hash,
+        lockouts: lockouts.clone(),
+        timestamp: Option::Some(19950128)
+    };
+    let vote_instr = VoteInstruction::CompactUpdateVoteState(vote_state_update);
+    let instruction = Instruction::new_with_bincode(solana_sdk::vote::program::ID,
+                                                    &vote_instr,
+                                                    vec![AccountMeta::new(vote_account.pubkey(), false),
+                                                         AccountMeta::new(validator_identity.pubkey(), true)]
+    );
+
+    /* Create the transaction */
+    return transaction::Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&validator_identity.pubkey()),
+        &[validator_identity],
+        recent_hash,
+    );
+}
+
 fn main() {
     let mut vote_txn: transaction::Transaction;
     let rpc_client  = RpcClient::new(ENTRYPOINT);
     let vote_account = read_keypair_file(ACCOUNT).unwrap();
-    let voter_identity = read_keypair_file(IDENTITY).unwrap();
+    let validator_identity = read_keypair_file(IDENTITY).unwrap();
     let recent_hash = rpc_client.get_latest_blockhash().unwrap();
 
     /* Get recent blockhash and sign the vote txn */
@@ -29,26 +68,9 @@ fn main() {
             .deserialize(&vote_txn_raw)
             .unwrap();
         println!("Vote transaction raw_sz={:?}", vote_txn_raw.len());
-        vote_txn.sign(&[voter_identity], recent_hash);
+        vote_txn.sign(&[validator_identity], recent_hash);
     } else {
-        let root = Option::Some(0 as u64);
-        let hash = hash::Hash::new_unique();
-        let lockout1 = Lockout::new_with_confirmation_count(0, 18);
-        let lockout2 = Lockout::new_with_confirmation_count(1, 17);
-        let lockout3 = Lockout::new_with_confirmation_count(2, 16);
-        let lockouts = VecDeque::from([lockout1, lockout2, lockout3]);
-        let vote_instr = VoteInstruction::CompactUpdateVoteState(VoteStateUpdate::new(lockouts, root, hash));
-        let instruction = Instruction::new_with_bincode(solana_sdk::vote::program::ID,
-                                                       &vote_instr,
-                                                       vec![AccountMeta::new(voter_identity.pubkey(), true),
-                                                        AccountMeta::new(vote_account.pubkey(), false)]
-                                                        );
-        vote_txn = transaction::Transaction::new_signed_with_payer(
-            &[instruction],
-            Some(&voter_identity.pubkey()),
-            &[voter_identity],
-            recent_hash,
-        );
+        vote_txn = create_vote_txn(recent_hash, &vote_account, &validator_identity);
     }
     println!("Vote transaction: {:?}", vote_txn);
 
